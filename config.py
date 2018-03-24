@@ -1,0 +1,5 @@
+valence_arousal = 'model_files/valence_arousal.csv'
+nb_model = 'model_files/NB_sentiment_model.pkl'
+nb_vectorizer = 'model_files/NB_vectorizer.pkl'
+outrage = 'model_files/outrage_dictionary_stemmed.csv'
+exp_outrage = 'model_files/expanded_outrage_dictionary_stemmed.csv'
