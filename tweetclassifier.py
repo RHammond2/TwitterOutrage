@@ -215,12 +215,8 @@ class classifytweet:
         positives = ['\<f0\>\<U\+009F\>\<U\+0099\>\<U\+0082\>']
         outrage = ['\<f0\>\<U\+009F\>\<U\+0098\>\<U\+00A4\>', '\<f0\>\<U\+009F\>\<U\+0098\>\<U\+00A0\>', \
                 '\<f0\>\<U\+009F\>\<U\+0098\>\<U\+00A1\>']
-        try:
-        	positive_score = self.tweet_tokenized.str.contains('|'.join(positives)).astype(int)
-        	outrage_score = self.tweet_tokenized.str.contains('|'.join(outrage)).astype(int)
-        except:
-	        positive_score = np.array([p in self.tweet for p in positives]).sum()
-	        outrage_score = np.array([o in self.tweet for o in outrage]).sum()
+	positive_score = np.array([p in self.tweet for p in positives]).sum()
+	outrage_score = np.array([o in self.tweet for o in outrage]).sum()
         self.emoji_count = outrage_score-positive_score
         return self.emoji_count
 
