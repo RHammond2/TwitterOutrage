@@ -8,9 +8,6 @@ import tarfile
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-# from gensim import corpora
-# from gensim.models import ldamodel, Phrases, phrases
-# from nltk import bigrams
 from nltk.corpus import stopwords
 from nltk.tokenize import TweetTokenizer
 from nltk.stem.snowball import SnowballStemmer
@@ -25,9 +22,7 @@ class classifytweet:
         """
         self.model_files = model_files
         self.load_model()
-        # self.n = len(self.dictionary.items())
-        # self.word_map = {v:k for k,v in self.dictionary.items()}
-        print("Model items loaded and classifier initialized!")
+        print("Twitter Outrage Classifier initialized!")
 
     def load_model(self):
         """
@@ -40,16 +35,6 @@ class classifytweet:
                 tar.extractall(path=self.model_files)
                 tar.close()
 
-        # # load model, corpus, and dictionary objects
-        # fnames = [fn for fn in os.listdir(self.model_files) if '.gensim' in fn]
-        # self.model = ldamodel.LdaModel.load(self.model_files + fnames[0])
-        # self.corpus = corpora.MmCorpus(self.model_files + 'unigrams_corpus.mm')
-        # self.dictionary = corpora.Dictionary.load(self.model_files + 'unigrams_dictionary.pkl')
-        # self.model.id2word = self.dictionary
-        # self.phraser = phrases.Phrases.load(self.model_files + 'document_phraser.pkl')
-        # for f in ['unigrams_dictionary.pkl', 'unigrams_corpus.mm', 'unigrams_corpus.mm.index', 'NB_vectorizer.pkl', 'NB_sentiment_model.pkl']:
-        #     fnames.append(f)
-
         # load the valence and arousal arrays
         df = pd.read_csv(config.valence_arousal)
         words = df.Word.values
@@ -60,26 +45,12 @@ class classifytweet:
         self.val_ar = {}
         self.val_ar = defaultdict(lambda:{'valence':{'mean':0,'sd':0},'arousal':{'mean':0,'sd':0}}, self.val_ar)
         for ix,w in enumerate(words):
-            # self.val_ar[w]={'valence':{'mean':0,'sd':0},'arousal':{'mean':0,'sd':0}}
             self.val_ar[w]['valence']['mean'] = valence_mean[ix]
             self.val_ar[w]['valence']['sd'] = valence_sd[ix]
             self.val_ar[w]['arousal']['mean'] = arousal_mean[ix]
             self.val_ar[w]['arousal']['sd'] = arousal_sd[ix]
         del df,words,valence_mean,valence_sd,arousal_mean,arousal_sd
-        # self.valence_mean = pickle.load(open(self.model_files + 'valence_mean.pkl', 'rb'))
-        # self.arousal_mean = pickle.load(open(self.model_files + 'arousal_mean.pkl', 'rb'))
-        # self.valence_sd = pickle.load(open(self.model_files + 'valence_sd.pkl', 'rb'))
-        # self.arousal_sd = pickle.load(open(self.model_files + 'arousal_sd.pkl', 'rb'))
-
-        # load the MinMaxScaler for the transforming the scores
-        # self.base_outrage_scaler = None
-        # self.expanded_outrage_scaler = None
-        # self.valence_scaler = None
-        # self.arousal_scaler = None
-        # self.emoji_scaler = None
-        # self.topic_valence_scaler = pickle.load(open(self.model_files + 'topic_valence_scaled.pkl', 'rb'))
-        # self.topic_arousal_scaler = pickle.load(open(self.model_files + 'topic_arousal_scaled.pkl', 'rb'))
-
+        
         # load the Naive Bayes sentiment model
         try:
             self.nb_model = pickle.load(open(config.nb_model, 'rb'))
@@ -96,9 +67,6 @@ class classifytweet:
         with open(config.exp_outrage, 'r') as f:
             self.exp_outrage_list = list(csv.reader(f))[0]
 
-        # cleanup the unzipped files
-        # for f in fnames:
-        #     os.remove(self.model_files + f)
         for f in os.listdir(self.model_files):
             if f.endswith('.gz'):
                 os.remove(self.model_files + f[:-3])
@@ -125,19 +93,28 @@ class classifytweet:
             self.stemmed = [stemmer.stem(y) for y in self.tweet_tokenized]
         except:
             self.stemmed = [stemmer.stem(y) for y in self.tweet_tokenized]
-
         self.stemmed = [d for d in self.stemmed if d not in self.stop]
-        # self.phrased = list(self.phraser[[stemmed]])[0]
+
+    def much_CAPS(self):
+	    """
+	    Returns the count of the total number of words that are in ALL CAPS and the total number of words.
+	    This ignores all hashtags and words that are have non-alpha characters in them.
+	    EXAMPLE: 'This tweet EXAMPLE 1S LAME! #SORRYNOTSORRY' => caps=2, total=4
+	    """
+	    caps = 0
+	    no_caps = 0
+	    for word in self.tweet_tokenized:
+	        if word.isalpha():
+	        	if word == word.upper():
+		            caps += 1
+		        else:
+		            no_caps += 1
+	    return caps, caps + no_caps
 
     def get_valence_score(self):
         """
         Creates the valence and arousal score for the tweet.
         """
-        # tweet_arr = np.zeros(self.n)
-        # for word in set(self.phrased) & set(self.word_map.keys()):
-        #     tweet_arr[self.word_map[word]] = 1.
-        # mean = tweet_arr * self.valence_mean
-        # sd = tweet_arr * self.valence_sd
         tweet_arr = np.zeros(self.n)
         mean = np.zeros(self.n)
         sd = np.zeros(self.n)
@@ -165,11 +142,6 @@ class classifytweet:
         """
         Creates the valence and arousal score for the tweet.
         """
-        # tweet_arr = np.zeros(self.n)
-        # for word in set(self.phrased) & set(self.word_map.keys()):
-        #     tweet_arr[self.word_map[word]] = 1.
-        # mean = tweet_arr * self.arousal_mean
-        # sd = tweet_arr * self.arousal_sd
         tweet_arr = np.zeros(self.n)
         mean = np.zeros(self.n)
         sd = np.zeros(self.n)
@@ -201,12 +173,6 @@ class classifytweet:
         self.sentiment_score = np.average(1 - self.nb_model.predict_proba(vectorized)[:,1])
 
         return self.sentiment_score
-
-    # def get_topics(self):
-    #     """
-    #     Extract the topics from the tweet using the LDA model.
-    #     """
-        # return self.model.get_document_topics(self.model.id2word.doc2bow(self.phrased), per_word_topics=False)
 
     def get_emoji_count(self):
         """
@@ -254,13 +220,7 @@ class classifytweet:
         0.12: df.scaled_ext_outrage_words
         0.00: df.net_emo_outrage
         """
-        # self.topics = self.get_topics()
-        # topic_valence_score = 0
-        # topic_arousal_score = 0
-        # for tup in self.topics:
-        #     topic_valence_score += self.topic_valence_scaler[tup[0]] * tup[1]
-        #     topic_arousal_score += self.topic_arousal_scaler[tup[0]] * tup[1]
-
+        
         scores = np.array([
             self.get_base_outrage_count(),
             self.get_expanded_outrage_count(),
@@ -271,12 +231,7 @@ class classifytweet:
             # (1 - topic_valence_score),
             # topic_arousal_score
             ])
-        # weights = np.array([0.14, 0.12, 0.14, 0.15, 0.13, 0.00, 0.16, 0.16])
-        # self.outrage_meter = np.sum(scores*weights)
-
-        # labels = ["outrage", "expanded outrage", "arousal", "valence", "sentiment", "emoji", "topic valence", "topic arousal", 'outrage score']
         labels = ["outrage", "expanded outrage", "arousal", "valence", "sentiment", "emoji", 'outrage score']
-        # weights = np.array([0.2, 0.15, 0.15, 0.13, 0.11, 0.10, 0.08, 0.08])
         weights = np.array([0.2, 0.15, 0.15, 0.13, 0.11, 0.10])
         self.outrage_meter = np.sum(scores*weights)
         
@@ -285,5 +240,3 @@ class classifytweet:
         
         scores = np.append(scores, self.outrage_meter)
         return scores
-
-        # return self.outrage_meter
